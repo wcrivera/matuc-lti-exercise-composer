@@ -1,0 +1,78 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "moduleResolution": "node",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "removeComments": false,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "exactOptionalPropertyTypes": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "baseUrl": "./src",
+        "paths": {
+            "@/*": [
+                "*"
+            ],
+            "@/controllers/*": [
+                "controllers/*"
+            ],
+            "@/models/*": [
+                "src/*"
+            ],
+            "@/services/*": [
+                "services/*"
+            ],
+            "@/selectors/*": [
+                "selectors/*"
+            ],
+            "@/types/*": [
+                "types/*"
+            ],
+            "@/utils/*": [
+                "utils/*"
+            ],
+            "@/config/*": [
+                "config/*"
+            ],
+            "@/middlewares/*": [
+                "middlewares/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "tests/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "frontend",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+    ],
+    "ts-node": {
+        "require": [
+            "tsconfig-paths/register"
+        ]
+    }
+}
