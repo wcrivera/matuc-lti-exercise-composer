@@ -1,222 +1,203 @@
 // src/services/ltiService.ts
-// Servicio principal para LTI (mejorado del anterior)
+// Servicio LTI simplificado (sin ltijs por ahora)
 
-import { Application } from 'express';
-import { Provider } from 'ltijs';
-import jwt from 'jsonwebtoken';
-import { ltiConfig, canvasConfig } from '../config/lti';
-import { LTISession } from '../models/lti/ltiSession';
-import { LTIUtils } from '../utils/ltiUtils';
-import { ltiLogger } from '../config/logging';
-
-let ltiProvider: Provider;
+import { Application, Request, Response } from 'express';
+import { ltiConfig, validateAllConfigs, showConfigSummary } from '../config/lti';
 
 export class LTIService {
   
+  /**
+   * Configurar el proveedor LTI (versión simplificada)
+   */
   static async setupProvider(app: Application): Promise<void> {
     try {
-      ltiLogger.info('Configurando proveedor LTI...');
+      console.log('🚀 Iniciando configuración LTI...');
       
-      // Inicializar proveedor LTI
-      ltiProvider = Provider.setup(
-        ltiConfig.issuer,
-        {
-          url: ltiConfig.databaseUrl,
-          connection: { user: '', pass: '' }
-        },
-        {
-          privateKey: ltiConfig.privateKey,
-          publicKey: ltiConfig.publicKey,
-          kid: 'matuc-lti-key-1'
-        }
-      );
-
-      // Registrar plataforma Canvas
-      await ltiProvider.registerPlatform({
-        url: 'https://canvas.instructure.com',
-        name: 'Canvas LMS',
-        clientId: ltiConfig.clientId,
-        authenticationEndpoint: 'https://canvas.instructure.com/api/lti/authorize_redirect',
-        accesstokenEndpoint: 'https://canvas.instructure.com/login/oauth2/token',
-        authConfig: { method: 'JWK_SET', key: ltiConfig.keySetUrl }
-      });
-
-      // Registrar deployment
-      await ltiProvider.registerDeployment({
-        clientId: ltiConfig.clientId,
-        deploymentId: ltiConfig.deploymentId
-      });
-
-      // Configurar handlers principales
-      this.setupLTIHandlers();
+      // Validar configuraciones
+      if (!validateAllConfigs()) {
+        console.warn('⚠️ Configuración LTI incompleta, usando versión simplificada');
+      }
       
-      // Integrar con Express
-      app.use(ltiProvider.app);
+      showConfigSummary();
+
+      // Configurar rutas LTI básicas
+      this.setupBasicLTIRoutes(app);
       
-      ltiLogger.info('✅ Proveedor LTI configurado exitosamente');
+      console.log('✅ LTI Service configurado (versión simplificada)');
+      console.log('💡 Para LTI completo, instala y configura ltijs en Fase 2');
       
     } catch (error) {
-      ltiLogger.error('❌ Error configurando LTI Provider:', error);
-      throw error;
+      console.error('❌ Error configurando LTI Service:', error);
+      console.warn('⚠️ Continuando sin funcionalidad LTI completa');
     }
   }
 
-  private static setupLTIHandlers(): void {
-    // Handler principal de LTI Launch
-    ltiProvider.onConnect(async (token, req, res) => {
-      try {
-        ltiLogger.info('🚀 LTI Launch recibido', {
-          userId: token.user,
-          courseId: token.platformContext?.contextId,
-          assignmentId: token.custom?.canvas_assignment_id
-        });
-
-        const session = await this.createLTISession(token, req);
-        const appToken = await this.generateAppToken(session);
-        
-        return this.handleLTIRedirect(res, appToken, session.sessionId);
-        
-      } catch (error) {
-        ltiLogger.error('Error procesando LTI Launch:', error);
-        return res.status(500).json({ error: 'Error procesando LTI Launch' });
-      }
+  /**
+   * Configurar rutas LTI básicas
+   */
+  private static setupBasicLTIRoutes(app: Application): void {
+    
+    // Ruta para claves públicas JWKS
+    app.get('/lti/keys', (req: Request, res: Response) => {
+      res.json({
+        keys: [],
+        message: 'JWKS endpoint - Configurar ltijs para claves reales',
+        issuer: ltiConfig.issuer,
+        algorithm: 'RS256'
+      });
     });
 
-    // Handler para Deep Linking
-    ltiProvider.onDeepLinking(async (token, req, res) => {
-      try {
-        ltiLogger.info('🔗 Deep Linking recibido');
-        
-        const resources = this.createDeepLinkingResources();
-        
-        return ltiProvider.redirect(
-          res, 
-          await ltiProvider.DeepLinking.createDeepLinkingMessage(
-            token,
-            resources,
-            { message: 'Herramientas matemáticas disponibles' }
-          )
-        );
-        
-      } catch (error) {
-        ltiLogger.error('Error en Deep Linking:', error);
-        return res.status(500).json({ error: 'Error en Deep Linking' });
-      }
+    // Ruta de login LTI
+    app.get('/lti/login', (req: Request, res: Response) => {
+      console.log('🎯 LTI Login solicitado');
+      res.json({
+        message: 'LTI Login endpoint',
+        issuer: ltiConfig.issuer,
+        client_id: ltiConfig.clientId,
+        note: 'Configurar ltijs para autenticación real'
+      });
     });
+
+    // Ruta de launch LTI
+    app.post('/lti/launch', (req: Request, res: Response) => {
+      console.log('🚀 LTI Launch solicitado');
+      console.log('Body:', req.body);
+      
+      // Crear sesión mock para desarrollo
+      const mockSession = {
+        ltiContext: {
+          userId: 'mock_user_' + Date.now(),
+          courseId: 'mock_course_123',
+          roles: ['Learner'],
+          resourceLinkId: 'mock_resource_456',
+          contextTitle: 'Curso de Matemáticas - Mock'
+        },
+        isTeacher: false,
+        isStudent: true,
+        timestamp: new Date().toISOString()
+      };
+
+      const token = Buffer.from(JSON.stringify(mockSession)).toString('base64');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      const redirectUrl = `${frontendUrl}/lti/launch?token=${token}`;
+
+      res.json({
+        message: 'LTI Launch procesado (versión mock)',
+        session: mockSession,
+        token,
+        redirect_url: redirectUrl,
+        note: 'Configurar ltijs para launch real desde Canvas'
+      });
+    });
+
+    // Ruta GET para launch (algunos LMS usan GET)
+    app.get('/lti/launch', (req: Request, res: Response) => {
+      console.log('🚀 LTI Launch GET solicitado');
+      res.json({
+        message: 'LTI Launch endpoint (GET)',
+        query: req.query,
+        note: 'Canvas normalmente usa POST para launch'
+      });
+    });
+
+    // Ruta para Deep Linking
+    app.post('/lti/deep-linking', (req: Request, res: Response) => {
+      console.log('🔗 Deep Linking solicitado');
+      
+      res.json({
+        message: 'Deep Linking endpoint',
+        available_tools: [
+          {
+            title: 'Generador de Ejercicios Matemáticos',
+            description: 'Herramienta para crear ejercicios matemáticos automáticamente',
+            url: `${ltiConfig.issuer}/lti/launch`
+          }
+        ],
+        note: 'Configurar ltijs para Deep Linking real'
+      });
+    });
+
+    console.log('✅ Rutas LTI básicas configuradas');
   }
 
-  private static async createLTISession(token: any, req: any): Promise<any> {
-    const context = token['https://purl.imsglobal.org/spec/lti/claim/context'];
-    const custom = token['https://purl.imsglobal.org/spec/lti/claim/custom'] || {};
-    const roles = token['https://purl.imsglobal.org/spec/lti/claim/roles'] || [];
-    
-    const userRole = this.determineUserRole(roles);
-    const sessionId = LTIUtils.generateSessionId();
-    
-    const session = new LTISession({
-      sessionId,
-      canvasUserId: token.sub,
-      canvasAssignmentId: custom.canvas_assignment_id || '',
-      canvasCourseId: context.id,
-      userRole,
-      userName: token.name || token.given_name || 'Usuario',
-      userEmail: token.email || '',
-      contextTitle: context.title || 'Curso',
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    });
-    
-    await session.save();
-    ltiLogger.info('✅ Sesión LTI creada', { sessionId });
-    
-    return session;
+  /**
+   * Obtener JWKS público para Canvas (versión mock)
+   */
+  static async getJWKS(): Promise<any> {
+    return {
+      keys: [],
+      message: 'Mock JWKS - Configurar ltijs para claves reales',
+      issuer: ltiConfig.issuer,
+      note: 'En producción, ltijs generará claves RSA reales'
+    };
   }
 
-  private static async generateAppToken(session: any): Promise<string> {
-    const payload = {
-      sessionId: session.sessionId,
-      userId: session.canvasUserId,
-      courseId: session.canvasCourseId,
-      assignmentId: session.canvasAssignmentId,
-      userRole: session.userRole,
-      userName: session.userName,
-      userEmail: session.userEmail,
-      contextTitle: session.contextTitle,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 horas
+  /**
+   * Generar token de sesión LTI mock
+   */
+  static generateMockLTISession(userType: 'teacher' | 'student' = 'student'): string {
+    const mockSession = {
+      ltiContext: {
+        userId: `mock_${userType}_${Date.now()}`,
+        courseId: 'mock_course_123',
+        roles: userType === 'teacher' ? ['Instructor'] : ['Learner'],
+        resourceLinkId: 'mock_resource_456',
+        contextTitle: 'Curso de Matemáticas - Mock'
+      },
+      isTeacher: userType === 'teacher',
+      isStudent: userType === 'student',
+      timestamp: new Date().toISOString()
     };
 
-    return jwt.sign(payload, ltiConfig.privateKey, {
-      algorithm: 'RS256'
-    });
+    return Buffer.from(JSON.stringify(mockSession)).toString('base64');
   }
 
-  private static handleLTIRedirect(res: any, token: string, sessionId: string): any {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/lti/launch?token=${token}&sessionId=${sessionId}`;
-    
-    return res.redirect(redirectUrl);
-  }
-
-  private static createDeepLinkingResources(): any[] {
-    return [
-      {
-        type: 'ltiResourceLink',
-        title: 'Mathematical Exercise Set',
-        description: 'Crear conjunto de ejercicios matemáticos interactivos',
-        url: `${ltiConfig.issuer}/api/lti/launch`,
-        custom: {
-          exercise_type: 'math_set',
-          tool_version: '1.0'
-        },
-        icon: {
-          url: `${ltiConfig.issuer}/public/icons/math-icon.png`,
-          width: 64,
-          height: 64
-        }
-      }
-    ];
-  }
-
-  private static determineUserRole(roles: string[]): 'student' | 'instructor' | 'admin' {
-    if (roles.some(role => role.includes('Instructor') || role.includes('Teacher'))) {
-      return 'instructor';
-    } else if (roles.some(role => role.includes('Admin'))) {
-      return 'admin';
-    }
-    return 'student';
-  }
-
-  static getProvider(): Provider {
-    if (!ltiProvider) {
-      throw new Error('LTI Provider no inicializado');
-    }
-    return ltiProvider;
-  }
-
-  static async validateSession(sessionId: string): Promise<any | null> {
+  /**
+   * Validar token de sesión LTI
+   */
+  static validateLTISession(token: string): { valid: boolean; data?: any; error?: string } {
     try {
-      const session = await LTISession.findOne({
-        sessionId,
-        status: 'active'
-      });
+      const sessionData = JSON.parse(Buffer.from(token, 'base64').toString());
       
-      if (session && !session.isExpired()) {
-        session.updateActivity();
-        await session.save();
-        return session;
+      if (!sessionData.ltiContext || !sessionData.timestamp) {
+        return { valid: false, error: 'Token LTI malformado' };
       }
-      
-      return null;
+
+      // Verificar que no sea muy antiguo (24 horas)
+      const tokenTime = new Date(sessionData.timestamp);
+      const now = new Date();
+      const maxAge = 24 * 60 * 60 * 1000;
+
+      if (now.getTime() - tokenTime.getTime() > maxAge) {
+        return { valid: false, error: 'Token LTI expirado' };
+      }
+
+      return { valid: true, data: sessionData };
+
     } catch (error) {
-      ltiLogger.error('Error validando sesión:', error);
-      return null;
+      return { valid: false, error: 'Error decodificando token LTI' };
     }
+  }
+
+  /**
+   * Obtener información de configuración LTI
+   */
+  static getConfiguration(): any {
+    return {
+      issuer: ltiConfig.issuer,
+      client_id: ltiConfig.clientId,
+      deployment_id: ltiConfig.deploymentId,
+      version: 'simplified',
+      status: 'development',
+      endpoints: {
+        login: `${ltiConfig.issuer}/lti/login`,
+        launch: `${ltiConfig.issuer}/lti/launch`,
+        keys: `${ltiConfig.issuer}/lti/keys`,
+        deep_linking: `${ltiConfig.issuer}/lti/deep-linking`
+      },
+      note: 'Versión simplificada para desarrollo. Configurar ltijs para producción.'
+    };
   }
 }
 
-// Función de conveniencia para setup
-export const setupLTIProvider = LTIService.setupProvider;
-export const getLTIProvider = LTIService.getProvider;
-
-// ================================
+export default LTIService;

@@ -49,19 +49,19 @@ const generateKeyPair = (): { privateKey: string; publicKey: string } => {
       format: 'pem'
     }
   });
-
+  
   return { privateKey, publicKey };
 };
 
 // Configuración LTI principal
 export const ltiConfig: LTIConfig = (() => {
   // Generar claves si no existen
-  const keys = (!process.env.LTI_PRIVATE_KEY || !process.env.LTI_PUBLIC_KEY)
-    ? generateKeyPair()
-    : {
-      privateKey: process.env.LTI_PRIVATE_KEY,
-      publicKey: process.env.LTI_PUBLIC_KEY
-    };
+  const keys = (!process.env.LTI_PRIVATE_KEY || !process.env.LTI_PUBLIC_KEY) 
+    ? generateKeyPair() 
+    : { 
+        privateKey: process.env.LTI_PRIVATE_KEY, 
+        publicKey: process.env.LTI_PUBLIC_KEY 
+      };
 
   return {
     issuer: process.env.LTI_ISSUER || 'https://localhost:3000',
@@ -87,7 +87,7 @@ export const canvasConfig: CanvasConfig = {
   retryAttempts: 3
 };
 
-// ⚠️ CONFIGURACIÓN DE SEGURIDAD - EXPORTADA CORRECTAMENTE
+// Configuración de seguridad
 export const securityConfig: SecurityConfig = {
   rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
